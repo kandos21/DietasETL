@@ -1,0 +1,15 @@
+
+# Ignorar el entorno virtual (No se sube a GitHub)
+.venv/
+venv/
+ENV/
+
+# Ignorar las credenciales de la base de datos (Por seguridad)
+.env
+
+# Ignorar archivos temporales de Python
+__pycache__/
+*.pyc
+
+# Ignorar los registros de errores locales
+*.log
