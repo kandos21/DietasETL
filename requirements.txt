@@ -1,0 +1,16 @@
+# Librerías base para procesamiento de datos masivos y cálculo numérico
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Cliente de conexión y mapeo relacional a PostgreSQL
+SQLAlchemy>=2.0.0
+psycopg2-binary>=2.9.5
+
+# Motor de lectura para hojas de cálculo de Microsoft Excel (.xlsx)
+openpyxl>=3.1.0
+
+# Cliente de peticiones HTTP para descargas remotas (OneDrive / GitHub Actions)
+requests>=2.31.0
+
+# Gestión y aislamiento de variables de entorno institucionales
+python-dotenv>=1.0.0

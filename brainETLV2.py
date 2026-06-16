@@ -101,13 +101,20 @@ def pipeline_etl_anual_mensual():
             try:
                 # --- EXTRACCIÓN CRUDA ---
                 df_raw = pd.read_excel(ruta_excel, sheet_name=nombre_hoja, skiprows=9)
-                df_raw.columns = [str(c).strip() for c in df_raw.columns]
+                
+                # 🔥 SOLUCIÓN: Limpiar espacios y quitar acentos de manera agresiva en los encabezados
+                df_raw.columns = [
+                    str(c).strip()
+                    .replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
+                    .replace('Á', 'A').replace('É', 'E').replace('Í', 'I').replace('Ó', 'O').replace('Ú', 'U')
+                    for c in df_raw.columns
+                ]
                 
                 if 'Clave ITEM' not in df_raw.columns or df_raw.empty:
                     print(f"    ⚠️ Estructura inválida en la hoja [{nombre_hoja}]. Saltando...")
                     continue
                 
-                # Filtrar renglones vacíos
+                # Filtrar renglones vacíos y notas basura al pie de página
                 df_raw = df_raw[df_raw['Almacen'].notna() & (df_raw['Almacen'].astype(str).str.strip() != '')]
                 df_raw = df_raw[df_raw['Clave ITEM'].notna() & (df_raw['Clave ITEM'].astype(str).str.strip() != '')]
                 
@@ -117,15 +124,36 @@ def pipeline_etl_anual_mensual():
 
                 # --- PASO 1: Inventario Mensual ---
                 df_inv = df_raw.iloc[:, 0:15].copy()
+                
+                # Mapeo actualizado buscando la columna sin acentos
                 columnas_map = {
-                    'Almacen': 'almacen', 'Clave ITEM': 'clave_item', 'Ingrediente': 'ingrediente',
-                    'UM': 'um', 'Ubicacion': 'ubicacion', 'Tipo': 'tipo', 'Lote': 'lote',
-                    'Fecha Ingreso': 'fecha_ingreso', 'Dias Estadía en Almacén': 'dias_estadia',
-                    'Exis Inicial': 'exis_inicial', 'Exis Final': 'exis_final'
+                    'Almacen': 'almacen', 
+                    'Clave ITEM': 'clave_item', 
+                    'Ingrediente': 'ingrediente',
+                    'UM': 'um', 
+                    'Ubicacion': 'ubicacion', 
+                    'Tipo': 'tipo', 
+                    'Lote': 'lote',
+                    'Fecha Ingreso': 'fecha_ingreso', 
+                    'Dias Estadia en Almacen': 'dias_estadia',  # ◄── Empareja perfecto con la limpieza previa
+                    'Exis Inicial': 'exis_inicial', 
+                    'Exis Final': 'exis_final'
                 }
                 
+               # Filtrar solo columnas existentes en el mapeo y renombrar
                 df_inv = df_inv[[c for c in columnas_map.keys() if c in df_inv.columns]].rename(columns=columnas_map)
                 
+                if 'dias_estadia' not in df_inv.columns:
+                    df_inv['dias_estadia'] = 0
+
+                # 1. Convertimos la columna a numérico puro (eliminando textos o errores de celda)
+                df_inv['dias_estadia'] = pd.to_numeric(df_inv['dias_estadia'], errors='coerce').fillna(0).astype(int)
+                
+                # 🔥 SOLUCIÓN: Compensar el desfase de 6 días del calendario interno de Excel
+                # Solo sumamos a los registros mayores a 0 para no alterar celdas vacías
+                df_inv['dias_estadia'] = df_inv['dias_estadia'].apply(lambda x: x + 6 if x > 0 else x)
+
+                # 2. Continuar con el resto de las conversiones numéricas
                 df_inv['exis_inicial'] = pd.to_numeric(df_inv['exis_inicial'].replace('POR ACEPTAR', 0), errors='coerce').fillna(0)
                 df_inv['exis_final'] = pd.to_numeric(df_inv['exis_final'].replace('#¡VALOR!', 0), errors='coerce').fillna(0)
                 df_inv['consumo_total'] = df_inv['exis_inicial'] - df_inv['exis_final']
